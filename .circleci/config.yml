@@ -67,10 +67,20 @@ jobs:
              return 1
            fi
 
-
+  migrate_backend:
+    docker:
+      - image: cimg/node:12.13.1
+    steps:
+      - run:
+          name: attempts migration
+          command: |
+            cd backend
+            npm install
+            npm audit fix
+            npm run migrations
 
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
 workflows:
   say-hello-workflow:
     jobs:
-      - smoke_test
+      - migrate_backend
