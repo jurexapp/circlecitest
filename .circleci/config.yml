@@ -74,7 +74,7 @@ jobs:
       - run:
           name: attempts migration
           command: |
-            cd ~/project/backend
+            cd ~/backend
             npm install
             npm audit fix
             npm run migrations
