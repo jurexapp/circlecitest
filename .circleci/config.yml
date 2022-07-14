@@ -74,7 +74,7 @@ jobs:
       - checkout
       - run:
           name: attempts migration
-          command: |
+          command: | 
             cd backend
             npm install
             npm audit fix
