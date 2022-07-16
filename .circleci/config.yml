@@ -69,7 +69,7 @@ jobs:
 
   migrate_backend:
     docker:
-      - image: cimg/node:12.13.1
+      - image: cimg/node:18.4.0
     steps:
       - checkout
       - run:
