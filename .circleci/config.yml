@@ -18,28 +18,28 @@ jobs:
           name: "Say hello"
           command: "echo Hello, World!"
 
-  create_infrastructure: 
-      docker:
-        - image: amazon/aws-cli
-      steps:
-        - checkout
-        - run:
-            name: Create Cloudformation Stack
-            command: |
-              aws cloudformation deploy \
-                --template-file Ec2-cloudformation.yml \
-                --stack-name myStack-${CIRCLE_WORKFLOW_ID:0:5} \
-                --region us-east-1
+  create_infrastructure:
+    docker:
+      - image: amazon/aws-cli
+    steps:
+      - checkout
+      - run:
+          name: Create Cloudformation Stack
+          command: |
+            aws cloudformation deploy \
+              --template-file Ec2-cloudformation.yml \
+              --stack-name myStack-${CIRCLE_WORKFLOW_ID:0:5} \
+              --region us-east-1
 
   # Exercise: Config and Deployment
-  configure_infrastructure: 
+  configure_infrastructure:
     docker:
       - image: python:3.7-alpine3.11
     steps:
       - checkout
       - add_ssh_keys:
-              # You can get this ID in the section where you registered the SSH Key
-              fingerprints: ["cd:0c:6b:fc:30:0a:01:39:21:e0:5f:26:a3:00:32:50"] 
+          # You can get this ID in the section where you registered the SSH Key
+          fingerprints: ["cd:0c:6b:fc:30:0a:01:39:21:e0:5f:26:a3:00:32:50"]
       - run:
           name: Install Ansible
           command: |
@@ -51,21 +51,21 @@ jobs:
 
   # Exercise: Smoke Testing
   smoke_test:
-   docker:
-     - image: alpine:latest
-   steps:
-     - run: apk add --update curl
-     - run:
-         name: smoke test
-         command: |
-           URL="https://blog.udacity.com/"
-           # Test if website exists
-           if curl -s --head ${URL} 
-           then
-             return 0
-           else
-             return 1
-           fi
+    docker:
+      - image: alpine:latest
+    steps:
+      - run: apk add --update curl
+      - run:
+          name: smoke test
+          command: |
+            URL="https://blog.udacity.com/"
+            # Test if website exists
+            if curl -s --head ${URL} 
+            then
+              return 0
+            else
+              return 1
+            fi
 
   migrate_backend:
     docker:
@@ -74,10 +74,61 @@ jobs:
       - checkout
       - run:
           name: attempts migration
-          command: | 
+          command: |
             cd backend
             npm install
             npm run migrations
+  deploy-backend:
+    docker:
+      # Docker image here that supports Ansible
+      - image: python:3.7-alpine3.11
+    steps:
+      # Checkout code from git
+      # Add ssh keys with fingerprint
+      # attach workspace
+      - checkout
+      - add_ssh_keys:
+          # You can get this ID in the section where you registered the SSH Key
+          fingerprints: ["35:27:2b:8b:f9:ad:39:95:81:9b:43:cc:7f:67:e6:d9"]
+      - attach_workspace:
+          at: ~/
+      - run:
+          name: Install dependencies
+          command: |
+            # your code here
+            apk add --update ansible curl rsync openssh nodejs npm
+            pip install awscli
+            aws --version
+            ansible --version
+      - run:
+          name: Deploy backend
+          command: |
+            # your code here
+            cd backend
+            echo ENVIRONMENT=production >> ".env"
+            echo NODE_ENV=local >> ".env"        # production
+            echo TYPEORM_CONNECTION=$TYPEORM_CONNECTION >> ".env"
+            echo TYPEORM_MIGRATIONS_DIR=$TYPEORM_MIGRATIONS_DIR >> ".env"
+            echo TYPEORM_ENTITIES=$TYPEORM_ENTITIES >> ".env"
+            echo TYPEORM_MIGRATIONS=$TYPEORM_MIGRATIONS >> ".env"
+            echo TYPEORM_HOST=$TYPEORM_HOST >> ".env"
+            echo TYPEORM_PORT=$TYPEORM_PORT >> ".env"
+            echo TYPEORM_USERNAME=$TYPEORM_USERNAME >> ".env"
+            echo TYPEORM_PASSWORD=$TYPEORM_PASSWORD >> ".env"
+            echo TYPEORM_DATABASE=$TYPEORM_DATABASE >> ".env"
+            cat .env
+            npm install
+            npm run build
+            cd ..
+            # Zip the directory
+            tar -C backend -czvf artifact.tar.gz .
+            mkdir .circleci/ansible/roles/deploy/files
+            mv artifact.tar.gz .circleci/ansible/roles/deploy/files
+            cd .circleci/ansible
+            echo "inventory.txt file IPs are"
+            cat inventory.txt
+            ansible-playbook -i inventory.txt deploy-backend.yml
+      # Here's where you will add some code to rollback on failure
 
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
 workflows:

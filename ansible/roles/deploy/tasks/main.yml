@@ -1,0 +1,53 @@
+- name: "update apt packages"
+  become: yes
+  apt:
+    update_cache: yes
+
+- name: "upgrade packages"
+  become: yes
+  apt:
+    upgrade: yes
+
+- name: "dependencies"
+  become: yes
+  apt:
+    name: ["nodejs", "npm"]
+    state: latest
+    update_cache: yes
+
+- name: "Update node to the compactible version"
+  shell: |
+    curl -sL https://deb.nodesource.com/setup_16.x | sudo -E bash - && sudo apt-get install -y nodejs
+
+- name: "install pm2"
+  become: yes
+  npm:
+    name: pm2
+    global: yes
+    production: yes
+    state: present
+
+- name: "Create directory"
+  file:
+    path: /home/ubuntu/udapeople
+    state: directory
+
+- name: "Copy files"
+  copy:
+    src: artifact.tar.gz
+    dest: /home/ubuntu/udapeople/artifact.tar.gz
+    backup: yes
+
+- name: "Uncompress files"
+  shell: |
+    cd /home/ubuntu/udapeople
+    tar xvzf artifact.tar.gz -C .
+    ls -la
+- name: "Start Application"
+  become: yes
+  shell: |
+    npm install
+    npm run build
+    pm2 start npm --name 'udapeople' -- start
+  args:
+    chdir: /home/ubuntu/udapeople
